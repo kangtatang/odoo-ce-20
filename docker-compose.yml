@@ -1,0 +1,53 @@
+name: ${COMPOSE_PROJECT_NAME:?isi COMPOSE_PROJECT_NAME di .env}
+
+services:
+  odoo:
+    image: odoo:20.0
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${ODOO_PORT}:8069"
+    environment:
+      HOST: db
+      USER: ${POSTGRES_USER}
+      PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./config/odoo.conf:/etc/odoo/odoo.conf:ro
+      - ./addons/custom:/mnt/extra-addons/custom
+      - ./addons/third_party:/mnt/extra-addons/third_party
+      - ./addons/bwa:/mnt/extra-addons/bwa
+      - odoo_data:/var/lib/odoo
+    restart: unless-stopped
+    networks: [net]
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks: [net]
+
+  mail:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:${MAIL_UI_PORT}:8025"
+    restart: unless-stopped
+    networks: [net]
+
+volumes:
+  odoo_data:
+  pg_data:
+
+networks:
+  net:
+    name: ${COMPOSE_PROJECT_NAME}_net
